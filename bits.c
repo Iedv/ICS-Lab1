@@ -1,7 +1,7 @@
 /* 
  * CS:APP Data Lab 
  * 
- * <Please put your name and userid here>
+ * Yubo Zhou - 25803050041
  * 
  * bits.c - Source file with your solutions to the Lab.
  *          This is the file you will hand in to your instructor.
@@ -146,7 +146,7 @@ NOTES:
  *   Rating: 1
  */
 int signMask(void) {
-  return 1;
+  return (0x01) << 31;
 }
 
 // P2
@@ -158,7 +158,7 @@ int signMask(void) {
  *   Rating: 2
  */
 int bitXor(int x, int y) {
-	return 2;
+	return (~(x & y) & ~(~x & ~y));
 }
 
 // P3
@@ -170,7 +170,10 @@ int bitXor(int x, int y) {
  *   Rating: 3
  */
 int negativePart(int x){
-  return 3;
+  int is_neg = !!(x & (0x01 << 31));
+  int msk = (~is_neg) + 0x01;
+
+  return (msk & ((~x) + 0x01));
 }
 
 
@@ -185,7 +188,7 @@ int negativePart(int x){
  *   Rating: 4
  */
 int copyByteWithin(int x, int src, int dst) {
-  return 4;
+  return ((x & ~((0xFF) << (dst << 3))) | (((x >> (src << 3)) & (0xFF)) << (dst << 3)));
 }
 
 // P5
@@ -197,8 +200,14 @@ int copyByteWithin(int x, int src, int dst) {
  *   Max ops: 20
  *   Rating: 4
  */
+#include <stdio.h>
 int logicalShift(int x, int n) {
-  return 5;
+  int is_n_pos = !!n;
+  int res = (x & ~(0x01 << 31)) >> n;
+  int msk = ~(is_n_pos << 31);
+  printf("%x %x %d %d\n", x, res, is_n_pos, msk);
+
+  return (res & msk) | ((!is_n_pos) << 31);
 }
 
 // P6
@@ -210,7 +219,9 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int swapNibblePairs(int x) {
-  return 6;
+  int msk = (0x0F) | (0x0F << 8) | (0x0F << 16) | (0x0F << 24);
+  int low = (x & msk) << 4;
+  return ((x >> 4) & msk) | low;
 }
 
 // P7
@@ -223,7 +234,9 @@ int swapNibblePairs(int x) {
  *   Rating: 4
  */
 int secondLowestZeroBit(int x) {
-  return 7;
+  int lowbit = (~x) & (x + 0x01);
+  x = x | lowbit;
+  return (~x) & (x + 0x01);
 }
 
 // P8
@@ -236,7 +249,24 @@ int secondLowestZeroBit(int x) {
  *   Rating: 5
  */
 int oddParity(int x) {
-  return 8;
+  int sum = 0x00;
+  // xor : ~((x & y) | (~x & ~y)) = (~(x & y)) & (x | y)
+  int xor_x = 0x00, xor_y = 0x00;
+  xor_x = x, xor_y = x >> 16;
+  x = (~(xor_x & xor_y)) & (xor_x | xor_y);
+  xor_x = x, xor_y = x >> 8;
+  x = (~(xor_x & xor_y)) & (xor_x | xor_y);
+  sum = sum + x;
+  sum = sum + (x >> 1);
+  sum = sum + (x >> 2);
+  sum = sum + (x >> 3);
+  sum = sum + (x >> 4);
+  sum = sum + (x >> 5);
+  sum = sum + (x >> 6);
+  sum = sum + (x >> 7);
+  
+  sum = sum + !((x & (0x01 << 31)));
+  return sum & 1;
 }
 
 // P9
@@ -249,7 +279,10 @@ int oddParity(int x) {
  *   Rating: 5
  */
 int rotateRightBits(int x, int n) {
-  return 9;
+  n = n & 0x1F;
+  int neg_n = (~n) + 0x01;
+  int msk = (0x01 << (32 + neg_n)) + (~0x00);
+  return ((x >> n) & (msk)) | (x << (32 + neg_n));
 }
 
 // P10
