@@ -170,8 +170,7 @@ int bitXor(int x, int y) {
  *   Rating: 3
  */
 int negativePart(int x){
-  int is_neg = !!(x & (0x01 << 31));
-  int msk = (~is_neg) + 0x01;
+  int msk = (x >> 31);
 
   return (msk & ((~x) + 0x01));
 }
@@ -200,14 +199,14 @@ int copyByteWithin(int x, int src, int dst) {
  *   Max ops: 20
  *   Rating: 4
  */
-#include <stdio.h>
 int logicalShift(int x, int n) {
-  int is_n_pos = !!n;
-  int res = (x & ~(0x01 << 31)) >> n;
-  int msk = ~(is_n_pos << 31);
-  printf("%x %x %d %d\n", x, res, is_n_pos, msk);
+  int not_n = !n;
+  n = n | (not_n << 5);
+  int neg_n = ((~n) + 0x01);
+  int msk = (0x01 << (32 + neg_n)) + (~0x00);
+  int msk_ifn0 = ((~not_n) + 0x01);
+  return ((x >> n) & msk) | (msk_ifn0 & (x << (32 + neg_n)));
 
-  return (res & msk) | ((!is_n_pos) << 31);
 }
 
 // P6
@@ -280,7 +279,8 @@ int oddParity(int x) {
  */
 int rotateRightBits(int x, int n) {
   n = n & 0x1F;
-  int neg_n = (~n) + 0x01;
+  n = n | ((!n) << 5);
+  int neg_n = ((~n) + 0x01);
   int msk = (0x01 << (32 + neg_n)) + (~0x00);
   return ((x >> n) & (msk)) | (x << (32 + neg_n));
 }
@@ -297,7 +297,13 @@ int rotateRightBits(int x, int n) {
  *   Rating: 5
  */
 int roundEvenPow2(int x, int n) {
-  return 10;
+  int neg_one = ~0x00;
+  int delta = (x >> n) & 0x01;
+  delta = delta + neg_one;
+  x = x + ((0x01 << n) >> 1) + delta;
+
+  int msk = (0x01 << n) + neg_one;
+  return x & (~msk);
 }
 
 // P11
@@ -313,7 +319,16 @@ int roundEvenPow2(int x, int n) {
  *   Rating: 5
  */
 int midpointTowardFirst(int x, int y) {
-  return 11;
+  int is_x_neg = (x >> 31) & 1;
+  int is_y_neg = (y >> 31) & 1;
+  int is_x_pos = !is_x_neg;
+  int is_y_pos = !is_y_neg;
+  int delta = x + ((~y) + 0x01);
+  int raw_gr = !(delta >> 31);
+  int gr = ((is_x_pos & is_y_neg) | (((is_x_pos & is_y_pos) | (is_x_neg & is_y_neg)) & raw_gr));
+  int avg = (x >> 1) + (y >> 1);
+  int c = ((x & 1) + (y & 1) + gr) >> 1;
+  return avg + c;
 }
 
 
