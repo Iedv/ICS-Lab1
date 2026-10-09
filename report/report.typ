@@ -4,15 +4,12 @@
   numbering: "1",
   number-align: center,
 )
-#set text(font: ("Noto Serif CJK SC", "New Computer Modern"), size: 11pt, lang: "zh")
-#set par(justify: true, leading: 0.95em, first-line-indent: 2em)
-#show heading: set text(font: ("Noto Sans CJK SC", "New Computer Modern"))
-#show heading.where(level: 1): set text(size: 15pt)
-#show heading.where(level: 2): set text(size: 13pt)
-#show raw: set text(font: "Noto Sans Mono", size: 0.92em)
+#set text(size: 11pt, lang: "zh")
+#set par(justify: true, leading: 0.95em, first-line-indent: (amount: 2em, all: true))
+#show raw: set text(size: 0.92em)
 
 #align(center)[
-  #text(size: 20pt, weight: "bold", font: "Noto Sans CJK SC")[ICS Lab 1：Data Lab 实验报告]
+  #text(size: 20pt, weight: "bold")[ICS Lab 1：Data Lab 实验报告]
 ]
 #v(0.7em)
 #align(center)[
