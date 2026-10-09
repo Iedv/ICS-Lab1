@@ -342,7 +342,54 @@ int midpointTowardFirst(int x, int y) {
  *   Rating: 7
  */
 int isBetweenEitherOrder(int x, int a, int b) {
-  return 12;
+  int is_a_neg = (a >> 31) & 1;
+  int is_b_neg = (b >> 31) & 1;
+  int is_X_neg = (x >> 31) & 1;
+  int is_a_pos = !is_a_neg;
+  int is_b_pos = !is_b_neg;
+  int is_X_pos = !is_X_neg;
+
+  // ax : a <= x
+  int xx = x, yy = a;
+  int is_x_neg = is_X_neg;
+  int is_y_neg = is_a_neg;
+  int is_x_pos = is_X_pos;
+  int is_y_pos = is_a_pos;
+  int delta = xx + ((~yy) + 0x01);
+  int raw_gr = !(delta >> 31);
+  int ax = ((is_x_pos & is_y_neg) | (((is_x_pos & is_y_pos) | (is_x_neg & is_y_neg)) & raw_gr));
+  
+  // xb : x <= b
+  xx = b, yy = x;
+  is_x_neg = is_b_neg;
+  is_y_neg = is_X_neg;
+  is_x_pos = is_b_pos;
+  is_y_pos = is_X_pos;
+  delta = xx + ((~yy) + 0x01);
+  raw_gr = !(delta >> 31);
+  int xb = ((is_x_pos & is_y_neg) | (((is_x_pos & is_y_pos) | (is_x_neg & is_y_neg)) & raw_gr));
+  
+  // bx : b <= x
+  xx = x, yy = b;
+  is_x_neg = is_X_neg;
+  is_y_neg = is_b_neg;
+  is_x_pos = is_X_pos;
+  is_y_pos = is_b_pos;
+  delta = xx + ((~yy) + 0x01);
+  raw_gr = !(delta >> 31);
+  int bx = ((is_x_pos & is_y_neg) | (((is_x_pos & is_y_pos) | (is_x_neg & is_y_neg)) & raw_gr));
+  
+  // xa : x <= a
+  xx = a, yy = x;
+  is_x_neg = is_a_neg;
+  is_y_neg = is_X_neg;
+  is_x_pos = is_a_pos;
+  is_y_pos = is_X_pos;
+  delta = xx + ((~yy) + 0x01);
+  raw_gr = !(delta >> 31);
+  int xa = ((is_x_pos & is_y_neg) | (((is_x_pos & is_y_pos) | (is_x_neg & is_y_neg)) & raw_gr));
+  
+  return ((ax & xb) | (bx & xa));
 }
 
 // P13
@@ -355,7 +402,25 @@ int isBetweenEitherOrder(int x, int a, int b) {
  *   Rating: 7
  */
 int mul5Sat(int x) {
-  return 13;
+  // consts
+  int INT_MIN = 1 << 31;
+  int INT_MAX = ~INT_MIN;
+
+  // make positive
+  int is_neg_msk = (x >> 31);
+  int is_pos_msk = ~is_neg_msk;
+  int xx = (is_neg_msk & ((~x) + 0x01)) | (is_pos_msk & x);
+
+  // 0x19999999 is the greatest number that can be multiply
+  // if x > 0x19999999, return INT_MAX, else, *5;
+  int thr = (0x19 << 24) | (0x99 << 16) | (0x99 << 8) | (0x9A);
+  int delta = xx + ((~thr) + 0x01);
+  int msk_le = delta >> 31;
+  int ge = !msk_le;
+  int msk_ge = (~ge) + 0x01;
+
+  // restore
+  return (msk_ge & ((is_neg_msk & INT_MIN) | (is_pos_msk & INT_MAX))) | (msk_le & (x + (x << 2)));
 }
 
 // P14
@@ -368,7 +433,25 @@ int mul5Sat(int x) {
  *   Rating: 7
  */
 int classifyAdd3(int x, int y, int z) {
-  return 14;
+  int lx = x & 0xFF;
+  int ly = y & 0xFF;
+  int lz = z & 0xFF;
+  int carry = (lx + ly + lz) >> 8;
+  int xx = x >> 8;
+  int yy = y >> 8;
+  int zz = z >> 8;
+  int res = xx + yy + zz + carry;
+  res = res >> 23;
+  int is_neg_msk = (res >> 31);
+  int is_pos_msk = ~is_neg_msk;
+  int is_full_one = !(res + 1);
+  int is_full_zero = !res;
+  int is_good_msk = (~(is_full_one | is_full_zero) + 1);
+
+  int is_pos_overflow_msk = is_pos_msk & (~is_good_msk);
+  int is_neg_overflow_msk = is_neg_msk & (~is_good_msk);
+
+  return (is_good_msk & 0) | (is_pos_overflow_msk & 1) | (is_neg_overflow_msk);
 }
 
 // P15
@@ -385,7 +468,39 @@ int classifyAdd3(int x, int y, int z) {
  *   Rating: 7
  */
 unsigned floatScaleThreeHalves(unsigned uf) {
-  return 15;
+  unsigned S = uf >> 31;
+  unsigned E = (uf >> 23) & 0x000000FF;
+  unsigned M = uf & 0x007FFFFF;
+  if (E == 0x00000000) {
+    unsigned num = M + (M >> 1);
+    if ((num & 0x00000001) & (M & 0x00000001)) {
+      num = num + 1;
+    }
+    return num | (S << 31);
+  } else if (E == 0x000000FF) {
+    return uf;
+  }
+  unsigned num = M;
+  num = num | (0x00800000);
+  unsigned lst_bit = num & 1;
+  num = num + (num >> 1);
+  if (num & lst_bit) {
+    num = num + 1;
+  } 
+  unsigned res = (S << 31) | (E << 23);
+  if (num & 0x01000000) {
+    lst_bit = num & 1;
+    num = (num >> 1);
+    if (num & lst_bit) {
+      num = num + 1;
+    }
+    res = res + 0x00800000;
+    if (((res >> 23) & 0x000000FF) == 0x000000FF) {
+      return res & 0xFF800000;
+    }
+  }
+  res = res + (num & 0x007FFFFF);
+  return res;
 }
 
 // P16
@@ -401,7 +516,47 @@ unsigned floatScaleThreeHalves(unsigned uf) {
  *   Rating: 10
  */
 unsigned floatRoundEven(unsigned uf) {
-  return 16;
+  unsigned S = uf >> 31;
+  unsigned E = (uf >> 23) & 0x000000FF;
+  unsigned M = uf & 0x007FFFFF;
+  if (E == 0x00000000) {
+    return S << 31;
+  }
+  if (E == 0x000000FF) {
+    return uf;
+  }
+  if (E >= 150U) {
+    return uf;
+  }
+  if (E <= 125U) {
+    return S << 31;
+  }
+  unsigned decimal = 0x00000000;
+  unsigned num = M | 0x00800000;
+  int bit = 23 - (E - 127);
+  for (int i = 0; i < bit; i++) {
+    decimal = decimal | ((num & (1U << i)) << (24 - bit));
+    num = num & ~(1U << i);
+  }
+  if (bit == 24) {
+    if (decimal <= 0x00800000) {
+      return S << 31;
+    } else {
+      return (S << 31) | (127U << 23);
+    }
+  }
+  if (decimal < 0x00800000 || (decimal == 0x00800000 && !((num >> bit) & 1U))) {
+    num ^= 0x00800000;
+    return (S << 31) | (E << 23) | num;
+  } else {
+    num = num + (1U << bit);
+    unsigned res = (S << 31) | (E << 23);
+    if (num & (0x01000000)) {
+      res = res + 0x00800000;
+      num = num >> 1;
+    }
+    return res | (num & 0x007FFFFF);
+  }
 }
 
 // P17
@@ -415,7 +570,34 @@ unsigned floatRoundEven(unsigned uf) {
  *   Rating: 10
  */
 unsigned float_i2f(int x) {
-  return 17;
+  unsigned absx = x > 0 ? x : -x;
+  if (absx == 0) {
+    return 0x00000000;
+  }
+  unsigned ux = x;
+  unsigned res = ux & 0x80000000;
+
+  for (unsigned i = 31; i >= 0; i--) {
+    if ((absx >> i) & 1) {
+      unsigned num = absx & ((1U << i) - 1U);
+      if (i > 23) {
+        int remainder = num & ((1U << (i - 23)) - 1U);
+        num = num >> (i - 23);
+        if (remainder > (1U << (i - 24)) || (remainder == (1U << (i - 24)) && (num & 1))) {
+          num++;
+          if ((num >> 23) & 1) {
+            i++;
+            num = num ^ (1U << 23);
+            num = num >> 1;
+          }
+        }
+      } else {
+        num = num << (23 - i);
+      }
+      return res | ((i + 127U) << 23) | (num);
+    }
+  }
+  return 0x00000000;
 }
 
 
@@ -429,7 +611,33 @@ unsigned float_i2f(int x) {
  *   Rating: 10
  */
 int bitCount(int x) {
-  return 18;
+  int num = x;
+  int msk = 0x00;
+
+  msk = 0x55;
+  msk = msk | (msk << 8);
+  msk = msk | (msk << 16);
+  num = (num & msk) + ((num >> 1) & msk);
+
+  msk = 0x33;
+  msk = msk | (msk << 8);
+  msk = msk | (msk << 16);
+  num = (num & msk) + ((num >> 2) & msk);
+
+  msk = 0x0F;
+  msk = msk | (msk << 8);
+  msk = msk | (msk << 16);
+  num = (num & msk) + ((num >> 4) & msk);
+
+  msk = 0xFF;
+  msk = msk | (msk << 16);
+  num = (num & msk) + ((num >> 8) & msk);
+
+  msk = 0xFF;
+  msk = msk | (msk << 8);
+  num = (num & msk) + ((num >> 16) & msk);
+
+  return num;
 }
 
 // P19
@@ -443,5 +651,28 @@ int bitCount(int x) {
  */
 int bitReverse(int x)
 {
-  return 19;
+  int tmp = 0x00;
+  int msk = 0x00;
+  
+  tmp = x >> 16;
+  msk = (0xFF << 8) | (0xFF);
+  x = (x << 16) | (tmp & msk);
+
+  tmp = x >> 8;
+  msk = msk ^ (msk << 8);
+  x = ((x & msk) << 8) | (tmp & msk);
+
+  tmp = x >> 4;
+  msk = msk ^ (msk << 4);
+  x = ((x & msk) << 4) | (tmp & msk);
+
+  tmp = x >> 2;
+  msk = msk ^ (msk << 2);
+  x = ((x & msk) << 2) | (tmp & msk);
+
+  tmp = x >> 1;
+  msk = msk ^ (msk << 1);
+  x = ((x & msk) << 1) | (tmp & msk);
+
+  return x;
 }
